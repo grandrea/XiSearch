@@ -398,7 +398,7 @@ If more than one modification is expected to present, these can be defined as a 
 
     GRS(ph|ac)KMLN
 
-When only one modification is defined no modification is also a posibility - if two or more are defined then the residue will only be searched with one of the modifications. To search with several but also no modification add an | before the closing bracked to denote no modification as posibility.
+When only one modification is defined, no modification is also a possibility. If two or more are defined, then the residue will only be searched with one of the modifications. To search with several, but also allow no modification, add a "|" before the closing bracket to denote no modification as a possibility.
     GRS(ph|ac|)KMLN
 
 In the .config file for the search, the associated known modification for phospho is then defined
