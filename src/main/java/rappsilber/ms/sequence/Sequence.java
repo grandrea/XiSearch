@@ -181,7 +181,7 @@ public class Sequence implements AminoAcidSequence{
                 ArrayList<AminoAcid> positionalExpMods = new ArrayList<AminoAcid>();
                 String sExpMods = mExpMod.group(1).trim();
                 String[] expMods = sExpMods.split("\\|");
-                aaStr = aaStr.substring(aaStr.length() -1);
+                aaStr = aaStr.substring(0,1);
                 for (String mod : expMods) {
                     AminoAcid replacement = config.getAminoAcid(aaStr+mod.trim());
                     
@@ -206,7 +206,7 @@ public class Sequence implements AminoAcidSequence{
                         positionalExpMods.add(replacement);
                     }
                 }
-                if (sExpMods.endsWith("|")) {
+                if (sExpMods.endsWith("|") || positionalExpMods.size() == 1) {
                     positionalExpMods.add(config.getAminoAcid(aaStr));
                 }
                     

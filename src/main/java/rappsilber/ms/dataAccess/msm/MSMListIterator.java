@@ -75,7 +75,7 @@ public class MSMListIterator extends AbstractMSMAccess {
                 addFile(line, MSMListFile.getParent(), t);
             }
         }
-        //setNext();
+        setNext();
     }
 
     public MSMListIterator(String[] MSMListFile, String basePath, ToleranceUnit t , int minCharge, RunConfig config) throws FileNotFoundException, IOException, ParseException  {

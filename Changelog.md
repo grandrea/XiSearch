@@ -1,4 +1,8 @@
 
+Version 1.8.12
+  * BugFix: at some point a bug was introduced that prevented FASTA defined variable modifications from working
+  * improved search in Text fields(CTRL+f then F3)
+
 Version 1.8.11
   * BugFix: protein homomeric nterminal to nterminal crosslink could lead to a crash
 

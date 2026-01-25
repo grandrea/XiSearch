@@ -24,6 +24,7 @@ import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -53,6 +54,8 @@ public class GenericTextPopUpMenu extends JPopupMenu {
     JMenuItem cutAllFunc;
     JMenuItem pasteFunc;
     JMenuItem searchFunc;
+
+    String lastSearch = null;
     
     public GenericTextPopUpMenu(String label) {
         super(label);
@@ -84,13 +87,24 @@ public class GenericTextPopUpMenu extends JPopupMenu {
                 }); 
                 if (c instanceof JTextArea) {
                     final JTextArea ta = (JTextArea) c;
-                    ta.getInputMap().put(KeyStroke.getKeyStroke( KeyEvent.VK_F, KeyEvent.CTRL_MASK ),
+                    ta.getInputMap().put(KeyStroke.getKeyStroke( KeyEvent.VK_F, InputEvent.CTRL_DOWN_MASK ),
                                                 "doSearch");
                     ta.getActionMap().put("doSearch",
                                                  new AbstractAction() {
                         @Override
                         public void actionPerformed(ActionEvent e) {
                             search(ta);
+                        }
+                    });                
+                    
+                    ta.getInputMap().put(KeyStroke.getKeyStroke( KeyEvent.VK_F3, 0),
+                                                "doSearchAgain");
+                    ta.getActionMap().put("doSearchAgain",
+                                                 new AbstractAction() {
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                            if (lastSearch != null && lastSearch.length()>0)
+                                innerSearch(ta,lastSearch);
                         }
                     });                
                 }
@@ -222,56 +236,90 @@ public class GenericTextPopUpMenu extends JPopupMenu {
         if (text.length()==0) {
             return;
         }
+        String searchWord="";
+        if (lastSearch!=null) {
+            searchWord=JOptionPane.showInputDialog(textField, "Search:", lastSearch);
         
-        String searchWord=JOptionPane.showInputDialog(textField, "Search:", "Search", JOptionPane.PLAIN_MESSAGE);
+        } else
+            searchWord=JOptionPane.showInputDialog(textField, "Search:", "Search", JOptionPane.PLAIN_MESSAGE);
+        
         
         if (searchWord != null && searchWord.length() >0) {
+            innerSearch(textField, searchWord);
+            lastSearch = searchWord;
+        } 
+    }
+
+    private void innerSearch(JTextComponent textField, String searchWord) {
+        String text = textField.getText();
+        
+        textField.requestFocusInWindow();
+        textField.requestFocus();
+        
+        String searchWordLC = searchWord.toLowerCase();
+        if (searchWordLC.contentEquals(searchWord)) {
+            text=text.toLowerCase();
+        }
+        
+        Highlighter.HighlightPainter painter =
+                new DefaultHighlighter.DefaultHighlightPainter( Color.cyan );
+        
+        textField.getHighlighter().removeAllHighlights();
+        
+        int currentOffset = textField.getCaretPosition();
+        int selStart = textField.getSelectionStart();
+        int selEnd = textField.getSelectionEnd();
+        int searchStart = currentOffset;
+        // do we have a selection?
+        if (selStart==selEnd) {
+            // no search the whole text
+            selStart = 0;
+            selEnd = text.length();
+        }
+        
+        // is the current position inside the search area
+        if (searchStart <selStart || searchStart >selEnd) {
+            searchStart=selStart;
+        }
+        
+        int offset = text.indexOf(searchWord, searchStart);
+        if (offset == -1 && searchStart > selStart)
+            offset = text.indexOf(searchWord, selStart);
+        int length = searchWord.length();
+
+        if (offset == searchStart) {
+            try {
+                offset = text.indexOf(searchWord, searchStart +1);                
+            } catch (Exception e){}
+        }
+
+        if (offset ==-1 || offset>selEnd) {
+            if (searchStart!=selStart) {
+                offset = text.indexOf(searchWord, selStart);
+            }
+        }
+               
+        if (offset !=-1 && offset<=selEnd) {
+            textField.setCaretPosition(offset);
+        }
+        
+        while ( offset != -1 && offset<=selEnd)
+        {
             textField.requestFocusInWindow();
             textField.requestFocus();
-            
-            String searchWordLC = searchWord.toLowerCase();
-            if (searchWordLC.contentEquals(searchWord)) {
-                text=text.toLowerCase();
-            }
-
-            Highlighter.HighlightPainter painter = 
-                new DefaultHighlighter.DefaultHighlightPainter( Color.cyan );
-            
-            textField.getHighlighter().removeAllHighlights();
-            
-            int currentOffset = textField.getCaretPosition();
-            int selStart = textField.getSelectionStart();
-            int selEnd = textField.getSelectionEnd();
-            int searchStart = currentOffset;
-            // do we have a selection?
-            if (selStart==selEnd) {
-                // no search the whole text
-                selStart = 0;
-                selEnd = text.length();
-            }
-            
-            // is the current position inside the search area
-            if (searchStart <selStart || searchStart >selEnd) {
-                searchStart=selStart;
-            }
-            
-            int offset = text.indexOf(searchWord, searchStart);
-            int length = searchWord.length();
-            if (offset ==-1 || offset>selEnd) {
-                if (searchStart!=selStart) {
-                    offset = text.indexOf(searchWord, searchStart);
-                }
-                
-            }
-
-            if (offset !=-1 && offset<=selEnd) {
-                textField.setCaretPosition(offset);
-            }
-
-            while ( offset != -1 && offset<=selEnd)
+            try
             {
-                textField.requestFocusInWindow();
-                textField.requestFocus();
+                
+                textField.getHighlighter().addHighlight(offset, offset + length, painter);
+                offset = text.indexOf(searchWord, offset+1);
+            }
+            catch(BadLocationException ble) { Logger.getLogger(this.getClass().getName()).log(Level.SEVERE,"Exception during search"); }
+        }
+        
+        if (searchStart!=selStart) {
+            offset = text.indexOf(searchWord, selStart);
+            while ( offset != -1  && offset<=selEnd)
+            {
                 try
                 {
                     
@@ -279,22 +327,7 @@ public class GenericTextPopUpMenu extends JPopupMenu {
                     offset = text.indexOf(searchWord, offset+1);
                 }
                 catch(BadLocationException ble) { Logger.getLogger(this.getClass().getName()).log(Level.SEVERE,"Exception during search"); }
-            }    
-
-            if (searchStart!=selStart) {
-                offset = text.indexOf(searchWord, selStart);
-                while ( offset != -1  && offset<=selEnd)
-                {
-                    try
-                    {
-
-                        textField.getHighlighter().addHighlight(offset, offset + length, painter);
-                        offset = text.indexOf(searchWord, offset+1);
-                    }
-                    catch(BadLocationException ble) { Logger.getLogger(this.getClass().getName()).log(Level.SEVERE,"Exception during search"); }
-                }    
             }
-
         }
     }
     
