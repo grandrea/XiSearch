@@ -153,10 +153,10 @@ public class SymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRestr
     public boolean canCrossLink(AminoAcidSequence p, int linkSide) {
         // TODO: we make here an assumption, that the digestion would not work
         // after a cross-linekd amino-acid. 
-        if (m_linkable.isEmpty() && (linkSide < p.length() - 1 || p.isCTerminal())) {
+        if ((m_linkable.isEmpty() || m_linksEverything) && (linkSide < p.length() - 1 || p.isCTerminal())) {
             return true;
         }                
-        if (m_linkable.containsKey(p.nonLabeledAminoAcidAt(linkSide)) &&
+        if ((m_linksEverything || m_linkable.containsKey(p.nonLabeledAminoAcidAt(linkSide))) &&
                 (linkSide < p.length() - 1 || p.isCTerminal())) {
             return true;
         }
@@ -168,11 +168,11 @@ public class SymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRestr
 
     @Override
     public boolean canCrossLink(Fragment p, int linkSide) {
-        if (m_linkable.isEmpty()) {
+        if (m_linkable.isEmpty() || m_linksEverything) {
             return true;
         }                
         
-        if (m_linkable.containsKey(p.nonLabeledAminoAcidAt(linkSide))) {
+        if (m_linksEverything || m_linkable.containsKey(p.nonLabeledAminoAcidAt(linkSide))) {
             return true;
         }
         if (m_NTerminal && p.isProteinNTerminal() && linkSide == 0) {
@@ -208,6 +208,8 @@ public class SymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRestr
         ObjectWrapper<Boolean> cTerm = new  ObjectWrapper<Boolean>(false);
         UpdateableDouble nTermWeight = new UpdateableDouble(Double.POSITIVE_INFINITY);
         UpdateableDouble cTermWeight = new UpdateableDouble(Double.POSITIVE_INFINITY);
+        ObjectWrapper<Boolean> linksEverything = new ObjectWrapper<Boolean>(false);
+        UpdateableDouble defaultWeight = new UpdateableDouble(Double.POSITIVE_INFINITY);
         double BaseMass = Double.NEGATIVE_INFINITY;
         double CrossLinkedMass = Double.NEGATIVE_INFINITY;;
         double CrossLinkedMinMass = Double.NEGATIVE_INFINITY;;
@@ -216,6 +218,7 @@ public class SymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRestr
         String[] modifications = null;
         String[] losses = null;
         String[] stubs = null;
+        String conditionalStubs = null;
         boolean isDecoy = false;
         int dbid = -1;
         
@@ -230,7 +233,7 @@ public class SymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRestr
             if (argName.contentEquals("NAME")) {
                 Name = argParts[1];
             } else if (argName.contentEquals("LINKEDAMINOACIDS")) {
-                parseSpecificity(argParts[1], linkableAminoAcids, nTerm, nTermWeight, cTerm, cTermWeight, config);
+                parseSpecificity(argParts[1], linkableAminoAcids, nTerm, nTermWeight, cTerm, cTermWeight, linksEverything, defaultWeight, config);
             } else if (argName.contentEquals("MASS")) {
                 BaseMass = CrossLinkedMass = CrossLinkedMinMass = CrossLinkedMaxMass = Double.parseDouble(argParts[1].trim());
             }else if (argName.contentEquals("BASEMASS")) {
@@ -255,6 +258,8 @@ public class SymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRestr
                 losses = argParts[1].split(",");
             } else if (argName.contentEquals("STUBS")) {
                 stubs = argParts[1].split(",");
+            } else if (argName.contentEquals("CONDITIONALSTUBS")) {
+                conditionalStubs = argParts[1];
             } else if (argName.contentEquals("DECOY")) {
                 isDecoy = true;
             } else if (argName.contentEquals("ID")) {
@@ -299,6 +304,13 @@ public class SymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRestr
             }
         }
 
+        if (Name == null || BaseMass == Double.NEGATIVE_INFINITY ||
+                CrossLinkedMass == Double.NEGATIVE_INFINITY) { // || linkableAminoAcids.size() == 0)  {
+            throw new ConfigurationParserException("Config line does not describe a valid " + SymetricSingleAminoAcidRestrictedCrossLinker.class.getName());
+        }
+
+        SymetricSingleAminoAcidRestrictedCrossLinker cl =  new SymetricSingleAminoAcidRestrictedCrossLinker(Name, BaseMass, CrossLinkedMass, linkableAminoAcids);
+
         if (stubs != null) {
             for (int l =0; l < stubs.length;l++ ) {
                 String sName = stubs[l++];
@@ -308,22 +320,22 @@ public class SymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRestr
                     String largs ="NAME:"+sName+"mod;aminoacids:"+ am.SequenceID + ";MASS:" +diff;
                     AminoAcidRestrictedLoss.parseArgs(largs, config);
                 }
-                CleavableCrossLinkerPeptide.parseArgs("MASS:"+ sMass + ";NAME:" + sName, config);
+                registerStubProducer(sName, sMass, config);
+                cl.registerStub(sName);
             }
         }
-        
-        if (Name == null || BaseMass == Double.NEGATIVE_INFINITY ||
-                CrossLinkedMass == Double.NEGATIVE_INFINITY) { // || linkableAminoAcids.size() == 0)  {
-            throw new ConfigurationParserException("Config line does not describe a valid " + SymetricSingleAminoAcidRestrictedCrossLinker.class.getName());
+
+        if (conditionalStubs != null) {
+            parseConditionalStubList(conditionalStubs, 0, cl, config);
         }
 //        if (linkableAminoAcids.isEmpty()){
 //            Logger.getLogger(SymetricSingleAminoAcidRestrictedCrossLinker.class.getName()).log(Level.WARNING, "Linker does not define linked amino-acids -> this will be a linear search ");
 //        }
-        SymetricSingleAminoAcidRestrictedCrossLinker cl =  new SymetricSingleAminoAcidRestrictedCrossLinker(Name, BaseMass, CrossLinkedMass, linkableAminoAcids);
         cl.setlinksNTerm(nTerm.value);
         cl.setNTermWeight(nTermWeight.value);
         cl.setlinksCTerm(cTerm.value);
         cl.setCTermWeight(cTermWeight.value);
+        cl.setLinksEverything(linksEverything.value, defaultWeight.value);
         cl.setDecoy(isDecoy);
         cl.setDBid(dbid);
         return cl;

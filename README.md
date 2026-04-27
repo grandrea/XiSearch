@@ -140,7 +140,7 @@ Normally, all searches are performed with 2 crosslinkers selected: the crosslink
 ##### crosslinker selection - presets
 "Small scale" presets refer to a small search with crosslinker modifications (amidated, hydrolysed, crosslinks within a peptide) searched as variable modifications only on linear peptides rather than peptide pairs. This is recommended for searches with many (>200) proteins in the database. "Large scale" presets perform a large search with crosslinker modifications treated as variable modifications on every peptide. This can increase memory usage dramatically.
 
- For crosslinkers using NHS-ester chemistry (DSS, BS3, DSBU, BS2G), S/T/Y is considered a side reaction and a score penalty is applied to the match relative to matching spectra crosslinked to K or Nterm.
+ For crosslinkers using NHS-ester chemistry (DSS, BS3, DSBU, BS2G), S/T/Y is considered a side reaction and a score penalty is applied to the match relative to matching spectra crosslinked to K or Nterm. The same weighted specificity syntax used for symmetric crosslinkers, e.g. `K(0),S(0.2),T(0.2),Y(0.2),nterm(0)`, can also be used for `FIRSTLINKEDAMINOACIDS` and `SECONDLINKEDAMINOACIDS` in asymmetric crosslinkers.
 
 | Preset      | Description                      | 
 | ----------- |--------------------------------------------------------------------------------------------------| 
@@ -321,6 +321,9 @@ with:
 | LINEARMODIFICATIONS: | same as MODIFICATIONS but will only be applied to linear peptides           |
 | LOSSES:              | a comma-separeted list defining crosslinker related losses E.g. X,10,Y120 defines two losses- X: a loss of 10Da from the cross-linker Y: a loss of 120Da from the cross-linker       |
 | STUBS:               | a comma-separeted list defining crosslinker stubs for MS-cleavable cross-linker  defines three cross-linker stubs: A: with mass 54.0105647 S: with mass 103.9932001 T: with mass 85.9826354                 |
+| CONDITIONALSTUBS:    | residue or terminus specific stubs for symmetric crosslinkers. Format `target=stubName,mass[,stubName,mass...]` with entries separated by `\|`                 |
+| FIRSTSTUBS / SECONDSTUBS: | unconditional stubs specific to the first or second reactive end of an asymmetric crosslinker                 |
+| FIRSTCONDITIONALSTUBS / SECONDCONDITIONALSTUBS: | like CONDITIONALSTUBS but specific to the first or second reactive end of an asymmetric crosslinker. The condition can depend on the same end or the opposite end using `FIRST(...)`, `SECOND(...)`, `FIRSTLINKEDAMINOACIDS(...)`, or `SECONDLINKEDAMINOACIDS(...)`                 |
 
 For example, definition of BS3
 
@@ -333,11 +336,21 @@ Heterobifunctional crosslinkers like sulfo-SDA may be defined as follows:
 
     crosslinker:AsymetricSingleAminoAcidRestrictedCrossLinker:Name:SDA;MASS:82.04186484;FIRSTLINKEDAMINOACIDS:*;SECONDLINKEDAMINOACIDS:K,S,Y,T,nterm
 
-Score penalties for amino acid types (as in the line for the BS3 definition above) are not supported for heterobifunctional crosslinkers.
+Score penalties for amino acid types may also be used for heterobifunctional crosslinkers, independently for `FIRSTLINKEDAMINOACIDS` and `SECONDLINKEDAMINOACIDS`.
+
+For example:
+
+    crosslinker:AsymetricSingleAminoAcidRestrictedCrossLinker:Name:EDC;MASS:-18.01056027;FIRSTLINKEDAMINOACIDS:E(0),D(0.1),cterm(0);SECONDLINKEDAMINOACIDS:K(0),S(0.2),T(0.2),nterm(0)
+
+Wildcard defaults with explicit overrides are also supported, so users may write either `SECONDLINKEDAMINOACIDS:*(0.2),D(0),E(0)` or `SECONDLINKEDAMINOACIDS:D(0),E(0),*(0.2)`. In both cases D and E keep the explicit score penalty and all other amino acids inherit the wildcard default.
 
 MS-cleavable crosslinkers need to be defined with losses corresponding to their crosslinker stubs:
 
     crosslinker:SymetricSingleAminoAcidRestrictedCrossLinker:Name:DSSO;MASS:158.0037648;LINKEDAMINOACIDS:K(0),S(0.2),T(0.2),Y(0.2),nterm(0);STUBS:A,54.0105647,S,103.9932001,T,85.9826354
+
+Residue-conditional cleavable fragments can be defined separately from the reactivity lists. For symmetric linkers use `CONDITIONALSTUBS`, for asymmetric linkers `FIRSTCONDITIONALSTUBS` and `SECONDCONDITIONALSTUBS`. These fields do not change which residues can react, only which reacted residues can produce the specified cleavable fragments. Asymmetric linkers may also define `FIRSTSTUBS` and `SECONDSTUBS` for unconditional end-specific stubs. Example:
+
+    crosslinker:AsymetricSingleAminoAcidRestrictedCrossLinker:Name:Example;MASS:100.0;FIRSTLINKEDAMINOACIDS:E,D;SECONDLINKEDAMINOACIDS:K,S,T;FIRSTSTUBS:Alpha,54.0;SECONDCONDITIONALSTUBS:FIRST(E,D)=Beta,0.0
 
 Additionally, crosslinker-related modifications may be defined in the crosslinker definition. It is however 
 recommended to define them separately as variable or linear modifications (see next section)

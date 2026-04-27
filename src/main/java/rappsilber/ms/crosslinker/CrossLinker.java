@@ -402,6 +402,22 @@ public abstract class CrossLinker {
 
     public abstract double getWeight(Peptide pep, int position);
 
+    public double getWeight(Peptide pep, int position, int site) {
+        return getWeight(pep, position);
+    }
+
+    public double getCrossLinkWeight(Peptide pep1, int position1, Peptide pep2, int position2) {
+        return getWeight(pep1, position1) + getWeight(pep2, position2);
+    }
+
+    public boolean canProduceStub(Peptide stubPeptide, int stubSite, Peptide otherPeptide, int otherSite, String stubName) {
+        return true;
+    }
+
+    public boolean canProduceStub(String stubName) {
+        return true;
+    }
+
     public int getSites() {
         return 2;
     }
@@ -414,9 +430,9 @@ public abstract class CrossLinker {
     protected static void parseSpecificity(String arg, HashMap<AminoAcid, Double> linkableAminoAcids,
             ObjectWrapper<Boolean> nTerm, UpdateableDouble nTermWeight,
             ObjectWrapper<Boolean> cTerm, UpdateableDouble cTermWeight,
+            ObjectWrapper<Boolean> linksEverything, UpdateableDouble defaultWeight,
             RunConfig config) throws ConfigurationParserException {
         boolean hasAAspeci = false;
-        boolean linksEverything = false;
         for (String aaName : arg.split(",")) {
             aaName = aaName.trim();
             String[] aw = aaName.split("[\\(\\)]", 3);
@@ -427,9 +443,9 @@ public abstract class CrossLinker {
             }
             // if we have an X or ANY defined don't define a specificity
             if (aaName.contentEquals("*") || aaName.contentEquals("ANY") || aaName.contentEquals("X") || aaName.contentEquals("XAA")) {
-                linkableAminoAcids.clear();
-                linksEverything = true;
-                break;
+                linksEverything.value = true;
+                defaultWeight.value = w;
+                continue;
             }
             if (aaName.toLowerCase().replaceAll("-", "").contentEquals("nterm")) {
                 nTerm.value = true;
@@ -450,12 +466,16 @@ public abstract class CrossLinker {
         if (linkableAminoAcids.size()>1) {
             linkableAminoAcids.remove(AminoAcid.DUMMY);
         }
-        if (hasAAspeci && linkableAminoAcids.isEmpty() && !linksEverything) {
+        if (hasAAspeci && linkableAminoAcids.isEmpty() && !linksEverything.value) {
             throw new ConfigurationParserException("None of the second linked aminoacids in " + arg + " are recognised. " + AsymetricSingleAminoAcidRestrictedCrossLinker.class.getName());
         }
-        // if we have at least 20 amino acids I assume it means it means anything  
-        if (linkableAminoAcids.size() >= 20) {
-            linkableAminoAcids.clear();
-        }
     }    
+
+    protected static void parseSpecificity(String arg, HashMap<AminoAcid, Double> linkableAminoAcids,
+            ObjectWrapper<Boolean> nTerm, UpdateableDouble nTermWeight,
+            ObjectWrapper<Boolean> cTerm, UpdateableDouble cTermWeight,
+            RunConfig config) throws ConfigurationParserException {
+        parseSpecificity(arg, linkableAminoAcids, nTerm, nTermWeight, cTerm, cTermWeight,
+                new ObjectWrapper<Boolean>(false), new UpdateableDouble(Double.POSITIVE_INFINITY), config);
+    }
 }

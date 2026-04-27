@@ -188,7 +188,7 @@ public class MatchedXlinkedPeptideWeighted extends MatchedXlinkedPeptide {
             if (cl.canCrossLink(pep1,p1)) {
                 for (int p2=pep2.length() - 1; p2>=0; p2--) { // for each residue
                     if (cl.canCrossLink(pep1, p1, pep2, p2)) { // if the crosslinker can act there
-                        double w2 = cl.getWeight(pep1, p1) + cl.getWeight(pep2, p2);
+                        double w2 = cl.getCrossLinkWeight(pep1, p1, pep2, p2);
                         ArrayList<MatchPeakPair> weightMiss = new ArrayList<MatchPeakPair>();
                         // find all missmatched entries
                         for (MatchedBaseFragment mbf : getMatchedFragments()) {

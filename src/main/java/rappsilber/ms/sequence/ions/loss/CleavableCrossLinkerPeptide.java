@@ -127,13 +127,31 @@ public class CleavableCrossLinkerPeptide extends Loss implements CrossLinkedFrag
         this(deltaMass);
         this.name = name;
     }
+
+    protected boolean canCreateStub(Fragment fragment, Peptide otherPeptide, CrossLinker crosslinker) {
+        if (otherPeptide == null) {
+            return crosslinker.canProduceStub(name);
+        }
+        PeptideIon other = new PeptideIon(otherPeptide);
+        for (int fragmentSite = fragment.getStart(); fragmentSite <= fragment.getEnd(); fragmentSite++) {
+            int relativeSite = fragmentSite - fragment.getStart();
+            for (int otherSite = 0; otherSite < otherPeptide.length(); otherSite++) {
+                if (crosslinker.canCrossLink(fragment, relativeSite, other, otherSite) &&
+                        crosslinker.canProduceStub(fragment.getPeptide(), fragmentSite, otherPeptide, otherSite, name)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
     
     
     @Override
     public ArrayList<Fragment> createCrosslinkedFragments(Collection<Fragment> fragments, Fragment Crosslinked, CrossLinker crosslinker, boolean noPeptideIons) {
         ArrayList<Fragment> ret = new ArrayList<Fragment>(fragments.size());
+        Peptide otherPeptide = Crosslinked.getPeptide();
         for (Fragment f : fragments) {
-            if (!(f instanceof CrosslinkerContaining)) {
+            if (!(f instanceof CrosslinkerContaining) && canCreateStub(f, otherPeptide, crosslinker)) {
                 ret.add(new CleavableCrossLinkerPeptideFragment(f, deltamass));
             }
         }
@@ -144,13 +162,15 @@ public class CleavableCrossLinkerPeptide extends Loss implements CrossLinkedFrag
     @Override
     public ArrayList<Fragment> createCrosslinkedFragments(Collection<Fragment> fragments, Collection<Fragment> Crosslinked, CrossLinker crosslinker, boolean noPeptideIons) {
         ArrayList<Fragment> ret = new ArrayList<Fragment>(fragments.size()+Crosslinked.size());
+        Peptide crosslinkedPeptide = Crosslinked.isEmpty() ? null : Crosslinked.iterator().next().getPeptide();
         for (Fragment f : fragments) {
-            if (!(f instanceof CrosslinkerContaining)) {
+            if (!(f instanceof CrosslinkerContaining) && canCreateStub(f, crosslinkedPeptide, crosslinker)) {
                 ret.add(new CleavableCrossLinkerPeptideFragment(f, deltamass));
             }
         }
+        Peptide fragmentPeptide = fragments.isEmpty() ? null : fragments.iterator().next().getPeptide();
         for (Fragment f : Crosslinked) {
-            if (!(f instanceof CrosslinkerContaining)) {
+            if (!(f instanceof CrosslinkerContaining) && canCreateStub(f, fragmentPeptide, crosslinker)) {
                 ret.add(new CleavableCrossLinkerPeptideFragment(f, deltamass));
             }
         }
@@ -164,7 +184,8 @@ public class CleavableCrossLinkerPeptide extends Loss implements CrossLinkedFrag
         PeptideIon pi = new PeptideIon(p);
         for (Fragment f : fragments) {
             if (f.getStart() <= linkSite1 && linkSite1 <= f.getEnd() && !f.isClass(CrosslinkerContaining.class)
-                && crosslinker.canCrossLink(pi, linkSite2, f, linkSite1-f.getStart())) {
+                && crosslinker.canCrossLink(pi, linkSite2, f, linkSite1-f.getStart())
+                && crosslinker.canProduceStub(f.getPeptide(), linkSite1, p, linkSite2, name)) {
                 ret.add(new CleavableCrossLinkerPeptideFragment(f, deltamass));
             }
         }
@@ -172,7 +193,8 @@ public class CleavableCrossLinkerPeptide extends Loss implements CrossLinkedFrag
         pi = new PeptideIon(p);
         for (Fragment f : Crosslinked) {
             if (f.getStart() <= linkSite2 && linkSite2 <= f.getEnd() && !f.isClass(CrosslinkerContaining.class)
-                && crosslinker.canCrossLink(pi, linkSite1, f, linkSite2-f.getStart())) {
+                && crosslinker.canCrossLink(pi, linkSite1, f, linkSite2-f.getStart())
+                && crosslinker.canProduceStub(f.getPeptide(), linkSite2, p, linkSite1, name)) {
                 ret.add(new CleavableCrossLinkerPeptideFragment(f, deltamass));
             }
         }
