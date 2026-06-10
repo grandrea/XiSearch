@@ -280,12 +280,12 @@ public class AsymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRest
     @Override
     public boolean canProduceStub(Peptide stubPeptide, int stubSite, Peptide otherPeptide, int otherSite, String stubName) {
         if (canCrossLinkPrimary(stubPeptide, stubSite) && canCrossLinkSecondary(otherPeptide, otherSite) &&
-                hasStubTarget(0, stubPeptide, stubSite, otherPeptide, otherSite, stubName)) {
+                hasStubTargetForMoieties(0, stubPeptide, stubSite, otherPeptide, otherSite, stubName)) {
             return true;
         }
 
         return canCrossLinkSecondary(stubPeptide, stubSite) && canCrossLinkPrimary(otherPeptide, otherSite) &&
-                hasStubTarget(1, stubPeptide, stubSite, otherPeptide, otherSite, stubName);
+                hasStubTargetForMoieties(1, otherPeptide, otherSite, stubPeptide, stubSite, stubName);
     }
 
     public double getAminoAcidWeightSecondary(AminoAcid AA) {

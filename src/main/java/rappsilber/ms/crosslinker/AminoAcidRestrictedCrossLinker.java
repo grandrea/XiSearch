@@ -63,11 +63,11 @@ public abstract class AminoAcidRestrictedCrossLinker extends CrossLinker{
             this.target = target;
         }
 
-        protected boolean matches(Peptide stubPeptide, int stubPosition, Peptide otherPeptide, int otherPosition) {
+        protected boolean matches(Peptide moiety0Peptide, int moiety0Position, Peptide moiety1Peptide, int moiety1Position) {
             if (sourceSite == 0) {
-                return target.matches(stubPeptide, stubPosition);
+                return target.matches(moiety0Peptide, moiety0Position);
             }
-            return otherPeptide != null && target.matches(otherPeptide, otherPosition);
+            return moiety1Peptide != null && target.matches(moiety1Peptide, moiety1Position);
         }
     }
 
@@ -201,6 +201,11 @@ public abstract class AminoAcidRestrictedCrossLinker extends CrossLinker{
                 return true;
             }
         }
+        for (HashMap<String, ArrayList<StubCondition>> siteStubs : m_conditionalStubs.values()) {
+            if (siteStubs.containsKey(stubName)) {
+                return true;
+            }
+        }
         return false;
     }
     
@@ -252,6 +257,10 @@ public abstract class AminoAcidRestrictedCrossLinker extends CrossLinker{
     }
 
     protected boolean hasStubTarget(int site, Peptide pep, int position, Peptide otherPeptide, int otherPosition, String stubName) {
+        return hasStubTargetForMoieties(site, pep, position, otherPeptide, otherPosition, stubName);
+    }
+
+    protected boolean hasStubTargetForMoieties(int site, Peptide moiety0Peptide, int moiety0Position, Peptide moiety1Peptide, int moiety1Position, String stubName) {
         if (m_globalStubs.contains(stubName)) {
             return true;
         }
@@ -268,7 +277,7 @@ public abstract class AminoAcidRestrictedCrossLinker extends CrossLinker{
             return false;
         }
         for (StubCondition target : targets) {
-            if (target.matches(pep, position, otherPeptide, otherPosition)) {
+            if (target.matches(moiety0Peptide, moiety0Position, moiety1Peptide, moiety1Position)) {
                 return true;
             }
         }
