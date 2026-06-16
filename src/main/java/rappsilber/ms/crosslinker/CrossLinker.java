@@ -414,6 +414,10 @@ public abstract class CrossLinker {
         return true;
     }
 
+    public boolean canProduceCandidateStub(Peptide stubPeptide, int stubSite, Peptide otherPeptide, int otherSite, String stubName) {
+        return canProduceStub(stubPeptide, stubSite, otherPeptide, otherSite, stubName);
+    }
+
     public boolean canProduceStub(String stubName) {
         return true;
     }

@@ -321,9 +321,8 @@ with:
 | LINEARMODIFICATIONS: | same as MODIFICATIONS but will only be applied to linear peptides           |
 | LOSSES:              | a comma-separeted list defining crosslinker related losses E.g. X,10,Y120 defines two losses- X: a loss of 10Da from the cross-linker Y: a loss of 120Da from the cross-linker       |
 | STUBS:               | a comma-separeted list defining crosslinker stubs for MS-cleavable cross-linker  defines three cross-linker stubs: A: with mass 54.0105647 S: with mass 103.9932001 T: with mass 85.9826354                 |
-| CONDITIONALSTUBS:    | residue or terminus specific stubs for symmetric crosslinkers. Format `target=stubName,mass[,stubName,mass...]` with entries separated by `\|`                 |
-| FIRSTSTUBS / SECONDSTUBS: | unconditional stubs specific to the first or second reactive end of an asymmetric crosslinker                 |
-| FIRSTCONDITIONALSTUBS / SECONDCONDITIONALSTUBS: | like CONDITIONALSTUBS but specific to the first or second reactive end of an asymmetric crosslinker. The condition can depend on the same end or the opposite end using `FIRST(...)`, `SECOND(...)`, `FIRSTLINKEDAMINOACIDS(...)`, or `SECONDLINKEDAMINOACIDS(...)`                 |
+| FIRSTSTUBS / SECONDSTUBS: | for `AsymetricSingleConditionalCleavableCrossLinker`, unconditional stubs specific to the first or second reactive end                 |
+| FIRSTCONDITIONALSTUBS / SECONDCONDITIONALSTUBS: | for `AsymetricSingleConditionalCleavableCrossLinker`, conditional stubs specific to the first or second reactive end. The condition can depend on the same end or the opposite end using `FIRST(...)`, `SECOND(...)`, `FIRSTLINKEDAMINOACIDS(...)`, or `SECONDLINKEDAMINOACIDS(...)`                 |
 
 For example, definition of BS3
 
@@ -336,7 +335,7 @@ Heterobifunctional crosslinkers like sulfo-SDA may be defined as follows:
 
     crosslinker:AsymetricSingleAminoAcidRestrictedCrossLinker:Name:SDA;MASS:82.04186484;FIRSTLINKEDAMINOACIDS:*;SECONDLINKEDAMINOACIDS:K,S,Y,T,nterm
 
-Score penalties for amino acid types may also be used for heterobifunctional crosslinkers, independently for `FIRSTLINKEDAMINOACIDS` and `SECONDLINKEDAMINOACIDS`.
+Score penalties for amino acid types may also be used for heterobifunctional crosslinkers, independently for `FIRSTLINKEDAMINOACIDS` and `SECONDLINKEDAMINOACIDS`. For `AsymetricSingleAminoAcidRestrictedCrossLinker`, scoring remains legacy-compatible and uses the best collapsed residue penalty across the two ends.
 
 For example:
 
@@ -348,9 +347,9 @@ MS-cleavable crosslinkers need to be defined with losses corresponding to their 
 
     crosslinker:SymetricSingleAminoAcidRestrictedCrossLinker:Name:DSSO;MASS:158.0037648;LINKEDAMINOACIDS:K(0),S(0.2),T(0.2),Y(0.2),nterm(0);STUBS:A,54.0105647,S,103.9932001,T,85.9826354
 
-Residue-conditional cleavable fragments can be defined separately from the reactivity lists. For symmetric linkers use `CONDITIONALSTUBS`, for asymmetric linkers `FIRSTCONDITIONALSTUBS` and `SECONDCONDITIONALSTUBS`. These fields do not change which residues can react, only which reacted residues can produce the specified cleavable fragments. Asymmetric linkers may also define `FIRSTSTUBS` and `SECONDSTUBS` for unconditional end-specific stubs. Example:
+Residue-conditional cleavable fragments for asymmetric linkers are defined with `AsymetricSingleConditionalCleavableCrossLinker`, using `FIRSTCONDITIONALSTUBS` and `SECONDCONDITIONALSTUBS`. These fields do not change which residues can react, only which reacted residues can produce the specified cleavable fragments. This class may also define `FIRSTSTUBS` and `SECONDSTUBS` for unconditional end-specific stubs, and uses end-aware score penalties for the assigned linkage orientation. Example:
 
-    crosslinker:AsymetricSingleAminoAcidRestrictedCrossLinker:Name:Example;MASS:100.0;FIRSTLINKEDAMINOACIDS:E,D;SECONDLINKEDAMINOACIDS:K,S,T;FIRSTSTUBS:Alpha,54.0;SECONDCONDITIONALSTUBS:FIRST(E,D)=Beta,0.0
+    crosslinker:AsymetricSingleConditionalCleavableCrossLinker:Name:Example;MASS:100.0;FIRSTLINKEDAMINOACIDS:E,D;SECONDLINKEDAMINOACIDS:K,S,T;FIRSTSTUBS:Alpha,54.0;SECONDCONDITIONALSTUBS:FIRST(E,D)=Beta,0.0
 
 Additionally, crosslinker-related modifications may be defined in the crosslinker definition. It is however 
 recommended to define them separately as variable or linear modifications (see next section)

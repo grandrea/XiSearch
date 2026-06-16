@@ -34,7 +34,7 @@ import rappsilber.utils.ObjectWrapper;
  *
  * @author Lutz Fischer <l.fischer@ed.ac.uk>
  */
-public class AsymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRestrictedCrossLinker {
+public class AsymetricSingleConditionalCleavableCrossLinker extends AminoAcidRestrictedCrossLinker {
 
     protected HashMap<AminoAcid,Double> m_linkableSecondary;
     private boolean m_NTerminalSecondary = false;
@@ -52,7 +52,7 @@ public class AsymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRest
      * @param CrossLinkedMass
      * @param primaryLinkableAminoAcids
      */
-    public AsymetricSingleAminoAcidRestrictedCrossLinker(String Name, double BaseMass, double CrossLinkedMass, HashSet<AminoAcid> PrimaryLinkableAminoAcids, HashSet<AminoAcid> SecondaryLinkableAminoAcids) {
+    public AsymetricSingleConditionalCleavableCrossLinker(String Name, double BaseMass, double CrossLinkedMass, HashSet<AminoAcid> PrimaryLinkableAminoAcids, HashSet<AminoAcid> SecondaryLinkableAminoAcids) {
         super(Name, BaseMass, CrossLinkedMass, PrimaryLinkableAminoAcids);
         m_linkableSecondary = new HashMap<AminoAcid, Double>(SecondaryLinkableAminoAcids.size());
         for (AminoAcid aa : SecondaryLinkableAminoAcids) {
@@ -71,7 +71,7 @@ public class AsymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRest
      * @param CrossLinkedMass
      * @param primaryLinkableAminoAcids
      */
-    public AsymetricSingleAminoAcidRestrictedCrossLinker(String Name, double BaseMass, double CrossLinkedMass, HashMap<AminoAcid,Double> PrimaryLinkableAminoAcids, HashMap<AminoAcid,Double> SecondaryLinkableAminoAcids) {
+    public AsymetricSingleConditionalCleavableCrossLinker(String Name, double BaseMass, double CrossLinkedMass, HashMap<AminoAcid,Double> PrimaryLinkableAminoAcids, HashMap<AminoAcid,Double> SecondaryLinkableAminoAcids) {
         super(Name, BaseMass, CrossLinkedMass, PrimaryLinkableAminoAcids);
         m_linkableSecondary = SecondaryLinkableAminoAcids;
         
@@ -88,7 +88,7 @@ public class AsymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRest
      * @param CrossLinkedMass
      * @param primaryLinkableAminoAcids
      */
-    public AsymetricSingleAminoAcidRestrictedCrossLinker(String Name, double BaseMass, double CrossLinkedMass, AminoAcid[] PrimaryLinkableAminoAcids, AminoAcid[] SecondaryLinkableAminoAcids) {
+    public AsymetricSingleConditionalCleavableCrossLinker(String Name, double BaseMass, double CrossLinkedMass, AminoAcid[] PrimaryLinkableAminoAcids, AminoAcid[] SecondaryLinkableAminoAcids) {
         super(Name, BaseMass, CrossLinkedMass, PrimaryLinkableAminoAcids);
         m_linkableSecondary = new HashMap<AminoAcid,Double>(SecondaryLinkableAminoAcids.length);
         for (AminoAcid aa : SecondaryLinkableAminoAcids) {
@@ -245,13 +245,52 @@ public class AsymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRest
     }
 
     @Override
-    public boolean canProduceStub(Peptide stubPeptide, int stubSite, Peptide otherPeptide, int otherSite, String stubName) {
-        return true;
+    public double getWeight(Peptide pep, int position, int site) {
+        if (site == 0) {
+            return super.getWeight(pep, position);
+        }
+        double aaw = getAminoAcidWeightSecondary(pep.nonLabeledAminoAcidAt(position));
+
+        if (position==0 && m_NTerminalSecondary && pep.isNTerminal()) {
+            return Math.min(m_NTerminalWeightSecondary, aaw);
+        }
+
+        if (position==pep.length()-1 && m_CTerminalSecondary && pep.isCTerminal()) {
+            return Math.min(m_CTerminalWeightSecondary, aaw);
+        }
+
+        return aaw;
     }
 
     @Override
-    public boolean canProduceStub(String stubName) {
-        return true;
+    public double getCrossLinkWeight(Peptide pep1, int position1, Peptide pep2, int position2) {
+        double minWeight = Double.POSITIVE_INFINITY;
+
+        if (canCrossLinkPrimary(pep1, position1) && canCrossLinkSecondary(pep2, position2)) {
+            minWeight = getWeight(pep1, position1, 0) + getWeight(pep2, position2, 1);
+        }
+
+        if (canCrossLinkSecondary(pep1, position1) && canCrossLinkPrimary(pep2, position2)) {
+            minWeight = Math.min(minWeight, getWeight(pep1, position1, 1) + getWeight(pep2, position2, 0));
+        }
+
+        return minWeight;
+    }
+
+    @Override
+    public boolean canProduceStub(Peptide stubPeptide, int stubSite, Peptide otherPeptide, int otherSite, String stubName) {
+        if (canCrossLinkPrimary(stubPeptide, stubSite) && canCrossLinkSecondary(otherPeptide, otherSite) &&
+                hasStubTargetForMoieties(0, stubPeptide, stubSite, otherPeptide, otherSite, stubName)) {
+            return true;
+        }
+
+        return canCrossLinkSecondary(stubPeptide, stubSite) && canCrossLinkPrimary(otherPeptide, otherSite) &&
+                hasStubTargetForMoieties(1, otherPeptide, otherSite, stubPeptide, stubSite, stubName);
+    }
+
+    @Override
+    public boolean canProduceCandidateStub(Peptide stubPeptide, int stubSite, Peptide otherPeptide, int otherSite, String stubName) {
+        return canProduceStub(stubName);
     }
 
     public double getAminoAcidWeightSecondary(AminoAcid AA) {
@@ -279,7 +318,7 @@ public class AsymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRest
      * @param args
      * @return
      */
-    public static AsymetricSingleAminoAcidRestrictedCrossLinker parseArgs(String args, RunConfig config) throws ConfigurationParserException, ParseException {
+    public static AsymetricSingleConditionalCleavableCrossLinker parseArgs(String args, RunConfig config) throws ConfigurationParserException, ParseException {
         String Name = null;
         double BaseMass = Double.NEGATIVE_INFINITY;
         double CrossLinkedMass = Double.NEGATIVE_INFINITY;
@@ -297,6 +336,10 @@ public class AsymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRest
         UpdateableDouble defaultWeight2 = new UpdateableDouble(Double.POSITIVE_INFINITY);
         String[] losses = null;
         String[] stubs = null;
+        String[] firstStubs = null;
+        String[] secondStubs = null;
+        String conditionalStubsFirst = null;
+        String conditionalStubsSecond = null;
         boolean isDecoy = false;
         int dbid = 0;
 
@@ -324,13 +367,21 @@ public class AsymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRest
                 losses = argParts[1].split(",");
             } else if (argName.contentEquals("STUBS")) {
                 stubs = argParts[1].split(",");
+            } else if (argName.contentEquals("FIRSTSTUBS")) {
+                firstStubs = argParts[1].split(",");
+            } else if (argName.contentEquals("SECONDSTUBS")) {
+                secondStubs = argParts[1].split(",");
+            } else if (argName.contentEquals("FIRSTCONDITIONALSTUBS")) {
+                conditionalStubsFirst = argParts[1];
+            } else if (argName.contentEquals("SECONDCONDITIONALSTUBS")) {
+                conditionalStubsSecond = argParts[1];
             } else if (argName.contentEquals("ID")) {
                 dbid = Integer.parseInt(argParts[1].trim());
             }
         }
         if (Name == null || BaseMass == Double.NEGATIVE_INFINITY ||
                 CrossLinkedMass == Double.NEGATIVE_INFINITY)  {
-            throw new ConfigurationParserException("Config line does not describe a valid " + AsymetricSingleAminoAcidRestrictedCrossLinker.class.getName());
+            throw new ConfigurationParserException("Config line does not describe a valid " + AsymetricSingleConditionalCleavableCrossLinker.class.getName());
         }
         if (losses != null) {
             for (int l =0; l < losses.length;l++ ) {
@@ -340,14 +391,38 @@ public class AsymetricSingleAminoAcidRestrictedCrossLinker extends AminoAcidRest
             }
         }
 
-        AsymetricSingleAminoAcidRestrictedCrossLinker cl = new AsymetricSingleAminoAcidRestrictedCrossLinker(Name, BaseMass, CrossLinkedMass, primaryLinkableAminoAcids, secondaryLinkableAminoAcids);
+        AsymetricSingleConditionalCleavableCrossLinker cl = new AsymetricSingleConditionalCleavableCrossLinker(Name, BaseMass, CrossLinkedMass, primaryLinkableAminoAcids, secondaryLinkableAminoAcids);
 
         if (stubs != null) {
             for (int l =0; l < stubs.length;l++ ) {
                 String sName = stubs[l++];
                 double sMass = Double.parseDouble(stubs[l].trim());
-                CleavableCrossLinkerPeptide.parseArgs("MASS:"+ sMass + ";NAME:" + sName, config);
+                registerStubProducer(sName, sMass, config);
+                cl.registerStub(sName);
             }
+        }
+        if (firstStubs != null) {
+            for (int l =0; l < firstStubs.length;l++ ) {
+                String sName = firstStubs[l++];
+                double sMass = Double.parseDouble(firstStubs[l].trim());
+                registerStubProducer(sName, sMass, config);
+                cl.registerStub(0, sName);
+            }
+        }
+        if (secondStubs != null) {
+            for (int l =0; l < secondStubs.length;l++ ) {
+                String sName = secondStubs[l++];
+                double sMass = Double.parseDouble(secondStubs[l].trim());
+                registerStubProducer(sName, sMass, config);
+                cl.registerStub(1, sName);
+            }
+        }
+
+        if (conditionalStubsFirst != null) {
+            parseConditionalStubList(conditionalStubsFirst, 0, cl, config);
+        }
+        if (conditionalStubsSecond != null) {
+            parseConditionalStubList(conditionalStubsSecond, 1, cl, config);
         }
         cl.setlinksCTerm(CTerm1.value);
         cl.setlinksNTerm(NTerm1.value);
