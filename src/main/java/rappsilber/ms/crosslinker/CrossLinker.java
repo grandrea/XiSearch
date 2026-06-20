@@ -410,12 +410,20 @@ public abstract class CrossLinker {
         return getWeight(pep1, position1) + getWeight(pep2, position2);
     }
 
+    public boolean useCrossLinkWeightForEvidenceSelection() {
+        return true;
+    }
+
     public boolean canProduceStub(Peptide stubPeptide, int stubSite, Peptide otherPeptide, int otherSite, String stubName) {
         return true;
     }
 
     public boolean canProduceCandidateStub(Peptide stubPeptide, int stubSite, Peptide otherPeptide, int otherSite, String stubName) {
         return canProduceStub(stubPeptide, stubSite, otherPeptide, otherSite, stubName);
+    }
+
+    public boolean useCandidateStubPresentation() {
+        return false;
     }
 
     public boolean canProduceStub(String stubName) {

@@ -278,6 +278,11 @@ public class AsymetricSingleConditionalCleavableCrossLinker extends AminoAcidRes
     }
 
     @Override
+    public boolean useCrossLinkWeightForEvidenceSelection() {
+        return false;
+    }
+
+    @Override
     public boolean canProduceStub(Peptide stubPeptide, int stubSite, Peptide otherPeptide, int otherSite, String stubName) {
         if (canCrossLinkPrimary(stubPeptide, stubSite) && canCrossLinkSecondary(otherPeptide, otherSite) &&
                 hasStubTargetForMoieties(0, stubPeptide, stubSite, otherPeptide, otherSite, stubName)) {
@@ -291,6 +296,11 @@ public class AsymetricSingleConditionalCleavableCrossLinker extends AminoAcidRes
     @Override
     public boolean canProduceCandidateStub(Peptide stubPeptide, int stubSite, Peptide otherPeptide, int otherSite, String stubName) {
         return canProduceStub(stubName);
+    }
+
+    @Override
+    public boolean useCandidateStubPresentation() {
+        return true;
     }
 
     public double getAminoAcidWeightSecondary(AminoAcid AA) {

@@ -100,6 +100,7 @@ public class MatchedXlinkedPeptideWeighted extends MatchedXlinkedPeptide {
     private int findCrossLinkedResiduesWeighted(Peptide pep, ArrayList<MatchPeakPair> miss, double[] weights) {
         int missCount=Integer.MAX_VALUE;
         double minWeight = Double.MAX_VALUE;
+        double minLocalizationWeight = Double.MAX_VALUE;
         CrossLinker cl = getCrosslinker();
         ArrayList<MatchPeakPair> minWeightMiss = new ArrayList<MatchPeakPair>();
 
@@ -109,7 +110,8 @@ public class MatchedXlinkedPeptideWeighted extends MatchedXlinkedPeptide {
         int pos = -1;
         for (int i=0 ; i< pep.length(); i++) { // for each residue
             if (cl.canCrossLink(pep, i)) { // if the crosslinker can act there
-                double w = cl.getWeight(pep, i);
+                double priorWeight = cl.getWeight(pep, i);
+                double mismatchWeight = 0;
                 ArrayList<MatchPeakPair> weightMiss = new ArrayList<MatchPeakPair>();
                 // find all missmatched entries
                 for (MatchedBaseFragment mbf : getMatchedFragments()) {
@@ -120,26 +122,30 @@ public class MatchedXlinkedPeptideWeighted extends MatchedXlinkedPeptide {
                         // add the missmatch weights
                         if (mbf.isBaseFragmentFound()) {
                             SpectraPeak sp = mbf.getBasePeak();
-                            w+=getMissMatchWeight(f, sp);
+                            mismatchWeight+=getMissMatchWeight(f, sp);
                             weightMiss.add(new MatchPeakPair(f, mbf.getCharge(), sp));
                         }
 
                         for (Loss l :  mbf.getLosses().keySet()) {
                             SpectraPeak sp = mbf.getLosses().get(l);
-                            w+=getMissMatchWeight(l, sp);
+                            mismatchWeight+=getMissMatchWeight(l, sp);
                             weightMiss.add(new MatchPeakPair(l, mbf.getCharge(), sp));
                         }
                     }
                 }
 
-                if (w<minWeight) {
-                    minWeight = w;
+                double selectionWeight = (cl.useCrossLinkWeightForEvidenceSelection() ? priorWeight : 0) + mismatchWeight;
+                double localizationWeight = priorWeight + mismatchWeight;
+                if (selectionWeight < minWeight ||
+                        (selectionWeight == minWeight && localizationWeight < minLocalizationWeight)) {
+                    minWeight = selectionWeight;
+                    minLocalizationWeight = localizationWeight;
                     minWeightMiss = weightMiss;
                     pos = i;
                 }
-                weights[i] = w;
+                weights[i] = localizationWeight;
 
-                siteWeights.put(i, w);
+                siteWeights.put(i, localizationWeight);
 
             } else {
                 weights[i] = NON_CROSSLINKABLE_WEIGHT;
@@ -174,6 +180,7 @@ public class MatchedXlinkedPeptideWeighted extends MatchedXlinkedPeptide {
     private HashMap<int[],UpdateableDouble> findCrossLinkedResiduesWeighted(Peptide pep1, Peptide pep2, ArrayList<MatchPeakPair> miss) {
         int missCount=Integer.MAX_VALUE;
         double minWeight = Double.MAX_VALUE;
+        double minLocalizationWeight = Double.MAX_VALUE;
         CrossLinker cl = getCrosslinker();
         HashMap<int[],UpdateableDouble> weights = new HashMap<int[], UpdateableDouble>();
         ArrayList<MatchPeakPair> minWeightMiss = new ArrayList<MatchPeakPair>();
@@ -188,7 +195,8 @@ public class MatchedXlinkedPeptideWeighted extends MatchedXlinkedPeptide {
             if (cl.canCrossLink(pep1,p1)) {
                 for (int p2=pep2.length() - 1; p2>=0; p2--) { // for each residue
                     if (cl.canCrossLink(pep1, p1, pep2, p2)) { // if the crosslinker can act there
-                        double w2 = cl.getCrossLinkWeight(pep1, p1, pep2, p2);
+                        double priorWeight = cl.getCrossLinkWeight(pep1, p1, pep2, p2);
+                        double mismatchWeight = 0;
                         ArrayList<MatchPeakPair> weightMiss = new ArrayList<MatchPeakPair>();
                         // find all missmatched entries
                         for (MatchedBaseFragment mbf : getMatchedFragments()) {
@@ -198,23 +206,27 @@ public class MatchedXlinkedPeptideWeighted extends MatchedXlinkedPeptide {
                                 // add the missmatch weights
                                 if (mbf.isBaseFragmentFound()) {
                                     SpectraPeak sp = mbf.getBasePeak();
-                                    w2+=getMissMatchWeight(f, sp);
+                                    mismatchWeight+=getMissMatchWeight(f, sp);
                                     weightMiss.add(new MatchPeakPair(f, mbf.getCharge(), sp));
                                 }
                                 for (Loss l :  mbf.getLosses().keySet()) {
                                     SpectraPeak sp = mbf.getLosses().get(l);
-                                    w2+=getMissMatchWeight(l, sp);
+                                    mismatchWeight+=getMissMatchWeight(l, sp);
                                     weightMiss.add(new MatchPeakPair(l, mbf.getCharge(), sp));
                                 }
                             }
                         }
-                        if (w2<minWeight) {
-                            minWeight = w2;
+                        double selectionWeight = (cl.useCrossLinkWeightForEvidenceSelection() ? priorWeight : 0) + mismatchWeight;
+                        double localizationWeight = priorWeight + mismatchWeight;
+                        if (selectionWeight < minWeight ||
+                                (selectionWeight == minWeight && localizationWeight < minLocalizationWeight)) {
+                            minWeight = selectionWeight;
+                            minLocalizationWeight = localizationWeight;
                             minWeightMiss = weightMiss;
                             pos1 = p1;
                             pos2 = p2;
                         }
-                        weights.put(new int[] {p1,p2}, new UpdateableDouble(w2));
+                        weights.put(new int[] {p1,p2}, new UpdateableDouble(localizationWeight));
                         
                     } else {
                         weights.put(new int[] {p1,p2}, new UpdateableDouble(NON_CROSSLINKABLE_WEIGHT));

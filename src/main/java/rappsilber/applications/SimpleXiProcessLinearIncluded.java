@@ -28,7 +28,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import rappsilber.config.RunConfig;
 import rappsilber.ms.crosslinker.CrossLinker;
-import rappsilber.ms.crosslinker.AsymetricSingleConditionalCleavableCrossLinker;
 import rappsilber.ms.crosslinker.NonCovalentBound;
 import rappsilber.ms.crosslinker.SymetricNarrySingleAminoAcidRestrictedCrossLinker;
 import rappsilber.ms.dataAccess.AbstractSpectraAccess;
@@ -842,8 +841,7 @@ public class SimpleXiProcessLinearIncluded extends SimpleXiProcess{
         if (beta != null) {
             ArrayList<Fragment> betaFragments = beta.getPrimaryFragments(m_config);
             for (CrossLinkedFragmentProducer cfp : m_config.getCrossLinkedFragmentProducers()) {
-                if (cl instanceof AsymetricSingleConditionalCleavableCrossLinker &&
-                        cfp instanceof CleavableCrossLinkerPeptide) {
+                if (cl.useCandidateStubPresentation() && cfp instanceof CleavableCrossLinkerPeptide) {
                     allFragments.addAll(((CleavableCrossLinkerPeptide) cfp).createCandidateCrosslinkedFragments(allFragments, betaFragments, cl, false));
                 } else {
                     allFragments.addAll(cfp.createCrosslinkedFragments(allFragments, betaFragments, cl, false));
